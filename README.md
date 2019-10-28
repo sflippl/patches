@@ -1,1 +1,1 @@
-# Personal template for Python packages
+# Python implementation of contrastive predictive coding

@@ -2,5 +2,5 @@
 API Documentation
 =====
 
-.. autosummary:: PKGNAME
-    PKGNAME
+.. autosummary:: patches
+    patches

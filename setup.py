@@ -12,11 +12,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="PKGNAME",
-    version="VERSIONNR",
+    name="patches",
+    version="0.1.0a0",
     author="Samuel Lippl",
     author_email="sfc.lippl@gmail.com",
-    description="DESCRIPTION",
+    description="Python implementation of contrastive predictive coding",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="URL",

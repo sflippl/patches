@@ -30,12 +30,12 @@ def setup(app):
 
 # -- Project information -----------------------------------------------------
 
-project = 'PKGNAME'
+project = 'patches'
 copyright = '2019, Samuel Lippl'
 author = 'Samuel Lippl'
 
 # The full version, including alpha/beta/rc tags
-release = 'VERSIONNR'
+release = '0.1.0a0'
 
 
 # -- General configuration ---------------------------------------------------
