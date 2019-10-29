@@ -1,0 +1,12 @@
+name: cbm-experiment
+title: cbm-experiment
+username:
+account: sflippl
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1397739
+bundleId: 2549708
+url: https://sflippl.shinyapps.io/cbm-experiment/
+when: 1572391449.2657
+asMultiple: FALSE
+asStatic: FALSE

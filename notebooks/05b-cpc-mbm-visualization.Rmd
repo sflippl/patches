@@ -1,0 +1,118 @@
+---
+title: "Compositional binary model experiments"
+author: "Samuel Lippl"
+date: "29/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Loss
+
+```{r}
+loss_df <- feather::read_feather('05a-loss_df.feather')
+angle_df <- feather::read_feather('05a-angle_df.feather')
+head(loss_df)
+```
+
+First, we improve the representation of the optimizer string.
+
+```{r}
+loss_df <- 
+    loss_df %>% 
+    mutate(optimizer = optimizer %>% 
+               stringr::str_replace_all(stringr::coll('(\n'), '(') %>% 
+               stringr::str_replace_all(stringr::coll('\n)'), ')') %>% 
+               stringr::str_replace_all('\n\\s+', ', '))
+angle_df <- 
+    angle_df %>% 
+    mutate(optimizer = optimizer %>% 
+               stringr::str_replace_all(stringr::coll('(\n'), '(') %>% 
+               stringr::str_replace_all(stringr::coll('\n)'), ')') %>% 
+               stringr::str_replace_all('\n\\s+', ', '))
+```
+
+We create one of the plots:
+
+```{r}
+it_optimizer <- unique(loss_df$optimizer)[1]
+it_cbm <- unique(loss_df$cbm)[1]
+scale_loss_df <-
+    loss_df %>% 
+    group_by(optimizer, cbm, method) %>% 
+    summarise(min_loss = min(loss), max_loss = max(loss))
+loss_df %>% 
+    inner_join(scale_loss_df, by = c('optimizer', 'cbm', 'method')) %>% 
+    filter(optimizer == it_optimizer, time>=100) %>% 
+    filter(cbm == it_cbm) %>% 
+    mutate(loss = (loss-min_loss)/(max_loss-min_loss)) %>% 
+    ggplot(aes(x = time+1, y = loss, color = method)) + 
+    geom_smooth(method = 'loess') + 
+    geom_line(alpha=.2) +
+    labs(x = 'Time', y = 'Loss', color = 'Method') + 
+    scale_color_brewer(palette = 'Dark2') + 
+    scale_x_log10() + 
+    theme(legend.position = 'top')
+angle_df %>% 
+    filter(optimizer == it_optimizer, cbm == it_cbm, time>=100) %>% 
+    ggplot(aes(x = time+1, y = abs(angle), color = method,
+               linetype = latent_dimension)) + 
+    geom_smooth(method='loess') + 
+    geom_line(alpha = 0.2) +
+    scale_x_log10() + 
+    scale_color_brewer(palette = 'Dark2') + 
+    labs(x = 'Time', y = 'Angle', color = 'Method', linetype = 'Latent Dim.') + 
+    theme(legend.position = 'top')
+```
+
+```{r}
+id_optimizer <- 
+    loss_df %>% 
+    select(optimizer, opt_idx) %>% 
+    unique()
+id_optimizer %>% 
+    feather::write_feather('06-img/id_optimizer.feather')
+id_cbm <- 
+    loss_df %>% 
+    select(cbm, cbm_idx) %>% 
+    unique()
+id_cbm %>% 
+    feather::write_feather('06-img/id_cbm.feather')
+```
+
+
+```{r}
+for(it_optimizer in unique(loss_df$opt_idx)) {
+    for(it_cbm in unique(loss_df$cbm_idx)) {
+        loss_df %>% 
+            inner_join(scale_loss_df, by = c('optimizer', 'cbm', 'method')) %>% 
+            filter(opt_idx == it_optimizer, time>=100) %>% 
+            filter(cbm_idx == it_cbm) %>% 
+            mutate(loss = (loss-min_loss)/(max_loss-min_loss)) %>% 
+            ggplot(aes(x = time+1, y = loss, color = method)) + 
+            geom_smooth(method = 'loess') + 
+            geom_line(alpha=.2) +
+            labs(x = 'Time', y = 'Loss', color = 'Method') + 
+            scale_color_brewer(palette = 'Dark2') + 
+            scale_x_log10() + 
+            theme(legend.position = 'top') + 
+            ggsave(glue::glue('06-img/{it_optimizer}_{it_cbm}_loss.png'), width=6, height=4)
+
+        angle_df %>% 
+            filter(opt_idx == it_optimizer, cbm_idx == it_cbm, time>=100) %>% 
+            ggplot(aes(x = time+1, y = abs(angle), color = method,
+                       linetype = latent_dimension)) + 
+            geom_smooth(method='loess') + 
+            geom_line(alpha = 0.2) +
+            scale_x_log10() + 
+            scale_color_brewer(palette = 'Dark2') + 
+            labs(x = 'Time', y = 'Angle', color = 'Method', linetype = 'Latent Dim.') + 
+            theme(legend.position = 'top') + 
+            ggsave(glue::glue('06-img/{it_optimizer}_{it_cbm}_angles.png'), width=6, height=4)
+    }
+}
+```
+

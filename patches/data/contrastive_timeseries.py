@@ -14,10 +14,11 @@ class Contrastive1DTimeSeries(data.Dataset):
     returned consists of a numpy array with dimensions sample x time x variable.
     """
 
-    def __init__(self, data, n_contrasts=10, timesteps=range(1, 6)):
+    def __init__(self, data, n_contrasts=10, timesteps=range(1, 6), seed=None):
         self.data = data
         self.n_contrasts = n_contrasts
-        self.timesteps=timesteps
+        self.timesteps = timesteps
+        self.random_state = np.random.RandomState(seed=seed)
 
     @property
     def timepoints(self):
@@ -38,8 +39,8 @@ class Contrastive1DTimeSeries(data.Dataset):
         current_value = self.data[idx, :].reshape(1, 1, self.n_vars)
         future_values = self.data[[idx+t for t in self.timesteps], :].\
                              reshape(1, self.n_timesteps, self.n_vars)
-        contrastive_idx = torch.randint(0, self.timepoints,
-                                        (self.n_contrasts, ))
+        contrastive_idx = self.random_state.randint(0, self.timepoints,
+                                                    (self.n_contrasts, ))
         contrastive_values = np.concatenate([
             self.data[[c_idx]*self.n_timesteps, :].\
                  reshape(1, self.n_timesteps, self.n_vars)\
