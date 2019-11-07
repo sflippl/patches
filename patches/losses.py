@@ -3,31 +3,7 @@
 
 import torch
 
-__all__ = ['Temperature', 'LinearTemperature',
-           'ContrastiveLoss', 'BilinearSimilarity']
-
-class Temperature:
-    def __init__(self, temperature_fun=None):
-        self.temperature_fun = temperature_fun or (lambda x: 1)
-        self.it = 0
-
-    def __call__(self):
-        temperature = self.temperature_fun(self.it)
-        self.it += 1
-        return temperature
-
-    def restart(self):
-        self.it = 0
-
-class LinearTemperature(Temperature):
-    def __init__(self, length):
-        if length < 0:
-            raise ValueError('Length must be positive.')
-        def fun(x):
-            if x < length:
-                return x/length
-            return 1
-        super().__init__(fun)
+__all__ = ['ContrastiveLoss', 'BilinearSimilarity']
 
 class _NegExp(torch.nn.modules.loss._Loss):
     """Provides exp(-loss); suitable wrapper around a loss function for the 
@@ -46,36 +22,22 @@ class ContrastiveLoss(torch.nn.modules.loss._Loss):
     """Noise contrastive loss. It is assumed that the loss parameter returns a
     sample x timesteps matrix!"""
 
-    def __init__(self, similarity=None, loss=None, temperature=Temperature()):
+    def __init__(self, loss=None):
         super().__init__()
-        self.similarity = similarity or _NegExp(loss)
-        self._temperature = temperature 
+        self.loss = loss
+        self.loss.reduction = 'none'
 
-    def __call__(self, x, temperature=None):
-        if temperature is None:
-            temperature = self.temperature()
+    def __call__(self, x):
         predicted_code = x['predicted_code'].reshape(x['future_code'].shape)
-        true_category = self.similarity(predicted_code,
-                                        x['future_code'])
-        contrastive_categories = self.similarity(
-            predicted_code.repeat_interleave(x['contrastive_code'].shape[-3], axis=-3),
-            x['contrastive_code']
-        )
-        softmax = true_category/(
-            true_category + contrastive_categories.sum(axis=-2)
-        )
-        log_softmax = temperature*torch.log(true_category) - torch.log(
-            true_category + contrastive_categories.sum(axis=-2)
-        )
-        return -log_softmax.mean()
+        all_codes = torch.cat((x['future_code'], x['contrastive_code']), dim=-3)
+        if predicted_code.shape[-3] != all_codes.shape[-3]:
+            predicted_code = predicted_code.repeat_interleave(
+                all_codes.shape[-3], axis=-3
+            )
+        criterion = self.loss(predicted_code, all_codes).sum(axis=-1)
+        return -torch.nn.LogSoftmax(dim=-2)(-criterion)[:,0,:].mean()
 
-    def temperature(self):
-        return self._temperature()
-
-    def restart(self):
-        self._temperature.restart()
-
-class BilinearSimilarity(torch.nn.modules.loss._Loss):
+class BilinearLoss(torch.nn.modules.loss._Loss):
     """This is the bilinear similarity function.
     """
 
@@ -83,4 +45,4 @@ class BilinearSimilarity(torch.nn.modules.loss._Loss):
         super().__init__()
 
     def __call__(self, prediction, real_value):
-        return torch.exp((prediction*real_value).sum(axis=-1))
+        return -(prediction*real_value)
