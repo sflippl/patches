@@ -1,4 +1,4 @@
 """Patching networks in contrastive predictive coding.
 """
 
-from patches.networks.simple_scaffold import *
+from .contrastive_coder import *

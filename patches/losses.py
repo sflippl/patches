@@ -1,48 +1,38 @@
 """Loss functions for patching.
 """
 
-import torch
+import torch.nn as nn
 
 __all__ = ['ContrastiveLoss', 'BilinearSimilarity']
 
-class _NegExp(torch.nn.modules.loss._Loss):
-    """Provides exp(-loss); suitable wrapper around a loss function for the 
-    contrastive loss. Do not use on its own!
+
+
+class ContrastiveLoss(nn.modules.loss._Loss):
+    """The contrastive loss assumes that the first dimension of the passed input and target
+    provide the contrasts, and the second one provides the channels.
     """
 
-    def __init__(self, loss):
+    def __init__(self, criterion):
         super().__init__()
-        loss.reduction = 'none'
-        self.loss = loss
+        criterion.reduction = 'none'
+        self.criterion = criterion
 
-    def __call__(self, prediction, real_value):
-        return torch.exp(-self.loss(prediction, real_value).mean(axis=-1))
+    def forward(self, input, target):
+        expanded_input = input.reshape(input.shape[0], 1, *input.shape[1:])
+        expanded_target = target.expand(1, *target.shape)
+        loss = self.criterion(expanded_input, expanded_target).mean(axis=-1)
+        loss = -nn.LogSoftmax(dim=1)(-loss)\
+                  .mean(axis=tuple(range(2, loss.ndim)))\
+                  .diag()\
+                  .mean()
+        return loss
 
-class ContrastiveLoss(torch.nn.modules.loss._Loss):
-    """Noise contrastive loss. It is assumed that the loss parameter returns a
-    sample x timesteps matrix!"""
-
-    def __init__(self, loss=None):
-        super().__init__()
-        self.loss = loss
-        self.loss.reduction = 'none'
-
-    def __call__(self, x):
-        predicted_code = x['predicted_code'].reshape(x['future_code'].shape)
-        all_codes = torch.cat((x['future_code'], x['contrastive_code']), dim=-3)
-        if predicted_code.shape[-3] != all_codes.shape[-3]:
-            predicted_code = predicted_code.repeat_interleave(
-                all_codes.shape[-3], axis=-3
-            )
-        criterion = self.loss(predicted_code, all_codes).sum(axis=-1)
-        return -torch.nn.LogSoftmax(dim=-2)(-criterion)[:,0,:].mean()
-
-class BilinearLoss(torch.nn.modules.loss._Loss):
+class BilinearLoss(nn.modules.loss._Loss):
     """This is the bilinear similarity function.
     """
 
     def __init__(self):
         super().__init__()
 
-    def __call__(self, prediction, real_value):
-        return -(prediction*real_value)
+    def forward(self, input, target):
+        return -(input*target)
