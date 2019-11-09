@@ -3,6 +3,10 @@
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
+import patches.networks as networks
+import patches.losses as losses
+import patches.data as data
 
 class ClampedModel(nn.Module):
     """A method-agnostic syntax for models.
@@ -21,24 +25,38 @@ class ClampedModel(nn.Module):
             and outputs the arguments for the loss.
     """
 
-    def __init__(self, module, model_type=None, forward_pass=None, loss_pass=None):
+    def __init__(self, module, model_type=None, input_data=None, latent_data=None,
+                 forward_pass=None, loss_pass=None,
+                 loss_to_criterion=None, timesteps=[0], **kwargs):
+        super().__init__()
         self._module = module
+        self.model_type = model_type
         self.forward_pass = forward_pass or ClampedModel._get_forward_pass(model_type)
-        self.loss_pass = loss_pass or ClampedModel._get_loss_pass(loss_pass)
+        self.loss_pass = loss_pass or ClampedModel._get_loss_pass(model_type)
+        self.loss_to_criterion = loss_to_criterion or \
+                                 ClampedModel._get_loss_to_criterion(model_type)
 
     def forward(self, x):
         data = self.forward_pass(x)
-        return self._module(data)
+        data = self._module(data)
+        if self.model_type == 'upa':
+            data = data.reshape(*x['target'].shape)
+        return data
 
-    def loss(self, model_output, data, loss):
-        loss_arguments = self.loss_pass(model_output, data)
-        return loss(**loss_arguments)
+    def loss(self, model_output, data, loss=None, input_loss=None, latent_loss=None):
+        input_loss = input_loss or loss
+        latent_loss = latent_loss or loss
+        loss_arguments = self.loss_pass(model_output=model_output, data=data)
+        criterion = self.loss_to_criterion(loss, input_loss, latent_loss)
+        return criterion(**loss_arguments).mean()
 
     def _get_forward_pass(model_type):
         if (model_type is None) or model_type in ['cc']:
             return lambda data: data
-        if model_type in ['scr', 'spcr', 'ura', 'upa']:
+        if model_type in ['scr', 'spcr']:
             return lambda data: data['input']
+        if model_type in ['ura', 'upa']:
+            return lambda data: data['input'].reshape(-1, data['input'].shape[-1])
         raise ValueError('Unknown model type {}.'.format(model_type))
 
     def _get_loss_pass(model_type):
@@ -48,17 +66,44 @@ class ClampedModel(nn.Module):
             return lambda model_output, data: model_output
         if model_type in ['scr']:
             return lambda model_output, data: {'input': model_output,
-                                               'target': data['latents']}
+                                               'target': data['target']}
         if model_type in ['spcr']:
             return lambda model_output, data: {'input': model_output,
-                                               'target': data['predicted_latents']}
+                                               'target': data['target']}
         if model_type in ['ura']:
             return lambda model_output, data: {'input': model_output,
                                                'target': data['input']}
         if model_type in ['upa']:
             return lambda model_output, data: {'input': model_output,
-                                               'target': data['predicted_input']}
+                                               'target': data['target']}
         raise ValueError('Unknown model type {}.'.format(model_type))
+
+    def _get_loss_to_criterion(model_type):
+        if (model_type is None) or (model_type in ['ura', 'upa']):
+            return lambda loss, input_loss, latent_loss: input_loss
+        if model_type in ['scr', 'spcr']:
+            return lambda loss, input_loss, latent_loss: latent_loss
+        if model_type in ['cc']:
+            return lambda loss, input_loss, latent_loss: losses.ContrastiveLoss(latent_loss)       
+        raise ValueError('Unknown model type {}.'.format(model_type))
+
+    def dataset(self, input_data, latent_data, timesteps, batch_size=8, **kwargs):
+        if self.model_type in ['ura']:
+            dataset = data.Timeseries(input_data, timesteps=[0])
+            return DataLoader(dataset, batch_size=batch_size, drop_last=True)
+        if self.model_type in ['upa']:
+            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))
+            return DataLoader(dataset, batch_size=batch_size, drop_last=True)
+        if self.model_type in ['scr']:
+            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=[0])
+            return DataLoader(dataset, batch_size=batch_size, drop_last=True)
+        if self.model_type in ['spcr']:
+            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))
+            return DataLoader(dataset, batch_size=batch_size, drop_last=True)
+        if self.model_type in ['cc']:
+            return data.ContrastiveDataset(input_data, contrast_size=9, prediction_range=timesteps,
+                                           contrast_type='both')       
+        raise ValueError('Unknown model type {}.'.format(self.model_type))
 
 class PatchClamp:
     def __init__(self, model_generator=None, model_hyperparameters=None):
@@ -89,4 +134,39 @@ class PatchClamp:
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
                                       **kwargs)
-        cc = ClampedModel(patches.networks.ContrastiveCoding)
+        cc = ClampedModel(networks.ContrastiveCoder(models['encoder'], models['predictor']),
+                          'cc')
+        return cc
+
+    def get_ura(self, input_features, latent_features, **kwargs):
+        """Get the unsupervised reconstructive algorithm.
+        """
+        models = self.model_generator(input_features=input_features,
+                                      latent_features=latent_features,
+                                      **kwargs)
+        ura = ClampedModel(nn.Sequential(models['encoder'], models['decoder']), 'ura')
+        return ura
+
+    def get_upa(self, input_features, latent_features, **kwargs):
+        """Get the unsupervised predictive algorithm.
+        """
+        models = self.model_generator(input_features=input_features,
+                                      latent_features=latent_features,
+                                      **kwargs)
+        upa = ClampedModel(nn.Sequential(
+            models['encoder'], models['predictor'], models['decoder']
+        ), 'upa')
+        return upa
+
+    def get(self, algorithm, **kwargs):
+        if algorithm=='scr':
+            return self.get_scr(**kwargs)
+        if algorithm=='spcr':
+            return self.get_spcr(**kwargs)
+        if algorithm=='ura':
+            return self.get_ura(**kwargs)
+        if algorithm=='upa':
+            return self.get_upa(**kwargs)
+        if algorithm=='cc':
+            return self.get_cc(**kwargs)
+        raise ValueError('Unknown algorithm {}.'.format(algorithm))

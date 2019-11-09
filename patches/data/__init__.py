@@ -2,4 +2,5 @@
 """
 
 from .contrastive_data import *
-from patches.data.hidden_markov import *
+from .hidden_markov import *
+from .timeseries import *

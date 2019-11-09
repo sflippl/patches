@@ -5,8 +5,6 @@ import torch.nn as nn
 
 __all__ = ['ContrastiveLoss', 'BilinearSimilarity']
 
-
-
 class ContrastiveLoss(nn.modules.loss._Loss):
     """The contrastive loss assumes that the first dimension of the passed input and target
     provide the contrasts, and the second one provides the channels.

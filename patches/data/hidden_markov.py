@@ -5,77 +5,34 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
-__all__ = ['HiddenMarkovModel', 'Hidden2DMarkovModel']
+__all__ = ['HiddenMarkovModel']
 
 class HiddenMarkovModel(data.Dataset):
-    """The Hidden Markov Model consists of an input time series (time x var) and
-    a latent time series (time x var)."""
-    def __init__(self, data, latents, timesteps=range(1, 6)):
-        super().__init__()
-        self.data = data
-        self.latents = latents
+    """The hidden markov model consists of an input time series and a latent time series.
+
+    Args:
+        dataset: The expected format is (samples)x(timesteps)x(other variables).
+        timesteps: How should the latent time series be moved with respect to the input
+            timeseries? Default is 0.
+    """
+
+    def __init__(self, input_data, latent_data, timesteps=[0]):
+        self.input_data = input_data
+        self.latent_data = latent_data
         self.timesteps = timesteps
+        time_range = max(max(timesteps), 0) - min(min(timesteps), 0)
+        self.min_time = min(min(timesteps), 0)
+        self.items_per_sample = self.input_data.shape[1]-(time_range+1)
 
     def __len__(self):
-        return self.timepoints - max(self.timesteps)
-
-    @property
-    def timepoints(self):
-        return self.data.shape[0]
-
-    @property
-    def n_vars(self):
-        return self.data.shape[1]
-
-    @property
-    def n_timesteps(self):
-        return len(self.timesteps)
+        return self.input_data.shape[0]*self.items_per_sample
 
     def __getitem__(self, idx):
-        return {
-            'input': _numpy_to_torch(self.data[idx, :]),
-            'latent_values': _numpy_to_torch(self.latents[idx, :]),
-            'future_latent_values': _numpy_to_torch(
-                self.latents[
-                    [idx+t for t in self.timesteps], :
-                ]
-            )
-        }
-
-class Hidden2DMarkovModel(data.Dataset):
-    """The Hidden Markov Model consists of an input time series (time x var x var) and
-    a latent time series (time x var)."""
-    def __init__(self, data, latents, timesteps=range(1, 6)):
-        super().__init__()
-        self.data = data
-        self.latents = latents
-        self.timesteps = timesteps
-
-    def __len__(self):
-        return self.timepoints - max(self.timesteps)
-
-    @property
-    def timepoints(self):
-        return self.data.shape[0]
-
-    @property
-    def n_vars(self):
-        return (self.data.shape[1], self.data.shape[2])
-
-    @property
-    def n_timesteps(self):
-        return len(self.timesteps)
-
-    def __getitem__(self, idx):
-        return {
-            'input': _numpy_to_torch(self.data[idx, :]),
-            'latent_values': _numpy_to_torch(self.latents[idx, :]),
-            'future_latent_values': _numpy_to_torch(
-                self.latents[
-                    [idx+t for t in self.timesteps], :
-                ]
-            )
-        }
-
-def _numpy_to_torch(x):
-    return torch.from_numpy(x.astype(np.float32))
+        idx_0 = int(np.floor(idx/self.items_per_sample))
+        idx_1 = int(idx % self.items_per_sample)
+        input = self.input_data[idx_0, [idx_1-self.min_time]]
+        target_range = [idx_1+t-self.min_time for t in self.timesteps]
+        target = self.latent_data[idx_0, target_range]
+        input = torch.from_numpy(input.astype(np.float32))
+        target = torch.from_numpy(target.astype(np.float32))
+        return {'input': input, 'target': target}

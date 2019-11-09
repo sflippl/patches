@@ -71,7 +71,7 @@ class ContrastiveDataset(torch.utils.data.Dataset):
             for i in idxs_1:
                 data.append(self.data[[idx_0], i:(i+self.prediction_range+1)])
             return torch.from_numpy(np.concatenate(data, axis=0).astype(np.float32))
-        idxs_0 = self.random_state.randint(0, self.data.shape[0], size=self.contrast_size)
+        idxs_0 = self.random_state.randint(0, self.data.shape[0], size=int(self.contrast_size))
         idxs_1 = self.random_state.randint(0, self.data.shape[1]-self.prediction_range,
                                            size=self.contrast_size)
         for i, j in zip(idxs_0, idxs_1):
