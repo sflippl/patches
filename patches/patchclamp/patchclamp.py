@@ -105,7 +105,35 @@ class ClampedModel(nn.Module):
                                            contrast_type='both')       
         raise ValueError('Unknown model type {}.'.format(self.model_type))
 
+class Transpose(nn.Module):
+    """Transposing layer for use in sequential.
+    """
+
+    def __init__(self, dim0, dim1):
+        self.dim0 = dim0
+        self.dim1 = dim1
+
+    def forward(self, x):
+        return x.transpose(self.dim0, self.dim1)
+
 class PatchClamp:
+    class Predictor(nn.Module):
+        """Transposing the latter two dimensions in the predictor.
+        """
+
+        def __init__(self, encoder, predictor, timesteps=1, latent_features=-1):
+            super().__init__()
+            self.encoder = encoder
+            self.predictor = predictor
+            self.timesteps = timesteps
+            self.latent_features = latent_features
+
+        def forward(self, x):
+            x = self.encoder(x)
+            x = self.predictor(x)
+            x = x.reshape(*x.shape[:-2], self.timesteps, self.latent_features)
+            return x
+
     def __init__(self, model_generator=None, model_hyperparameters=None):
         self.model_generator = model_generator
         self.model_hyperparameters = model_hyperparameters
@@ -119,13 +147,17 @@ class PatchClamp:
         scr = ClampedModel(models['encoder'], 'scr')
         return scr
 
-    def get_spcr(self, input_features, latent_features, **kwargs):
+    def get_spcr(self, input_features, latent_features, timesteps=1, **kwargs):
         """Get the supervised predictive classification or regression.
         """
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
                                       **kwargs)
-        spcr = ClampedModel(nn.Sequential(models['encoder'], models['predictor']), 'spcr')
+        spcr = ClampedModel(PatchClamp.Predictor(models['encoder'],
+                                                 models['predictor'],
+                                                 timesteps=timesteps,
+                                                 latent_features=latent_features),
+                            'spcr')
         return spcr
 
     def get_cc(self, input_features, latent_features, **kwargs):
@@ -147,15 +179,16 @@ class PatchClamp:
         ura = ClampedModel(nn.Sequential(models['encoder'], models['decoder']), 'ura')
         return ura
 
-    def get_upa(self, input_features, latent_features, **kwargs):
+    def get_upa(self, input_features, latent_features, timesteps=1, **kwargs):
         """Get the unsupervised predictive algorithm.
         """
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
                                       **kwargs)
-        upa = ClampedModel(nn.Sequential(
-            models['encoder'], models['predictor'], models['decoder']
-        ), 'upa')
+        upa = ClampedModel(nn.Sequential(models['encoder'],
+                                         models['predictor'],
+                                         models['decoder']),
+                           'upa')
         return upa
 
     def get(self, algorithm, **kwargs):

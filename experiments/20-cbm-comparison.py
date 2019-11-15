@@ -17,8 +17,6 @@ widths = [
     [10, 50],
     [100, 100],
     [5, 5, 5],
-    [10, 10, 10],
-    [50, 50, 50],
     [5, 10, 50],
     [50, 50, 50],
     [100, 100, 100],
@@ -41,19 +39,16 @@ model_combinations = [[width, change_probability]\
                       if len(width) == len(change_probability)]
 
 samples = [
-    100, 
-    1000,
+    100,
     1e4,
     1e5
 ]
 
 learning_rates = [
-    1e-6,
     1e-5,
     1e-4, 2e-4, 5e-4,
     1e-3, 2e-3, 5e-3,
-    1e-2, 2e-2, 5e-2,
-    1e-1, 5e-1, 1
+    1e-2, 2e-2
 ]
 
 methods = {'SGD': optim.SGD,
@@ -63,7 +58,7 @@ methods = {'SGD': optim.SGD,
 
 latent_features = range(1, 6)
 
-iterations = 1
+iterations = 100
 
 epochs = 20
 

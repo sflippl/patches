@@ -22,3 +22,7 @@ class ContrastiveCoder(nn.Module):
         predicted_code = code[:, 1:]
         prediction = self.predictor(code[:, 0]).reshape(predicted_code.shape)
         return {'target': predicted_code, 'input': prediction}
+
+class ContrastiveAutoCoder(nn.Module):
+    """A contrastive autocoder consists of an encoder transforming the input into a latent
+    code, and a predictor using that latent code and the previous """
