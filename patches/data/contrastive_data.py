@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+import math
 import torch
 
 class ContrastiveDataset(torch.utils.data.Dataset):
@@ -80,3 +81,29 @@ class ContrastiveDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return int(self.data.shape[0]*self.items_per_sample)
+
+class ContrastiveTimeseries(torch.utils.data.Dataset):
+    """In contrast to the ContrastiveDataset, the contrastive timeseries has functionality specifically
+    for autoregressive purposes. This means that the contrasts are correlated, but the batching is more
+    consistent.
+    """
+
+    def __init__(self, data, contrast_size=9, prediction_range=5, seed=None, drop_last=True):
+        if not drop_last:
+            raise NotImplementedError()
+        batches_per_timeseries = math.ceil((contrast_size+1)/data.shape[0])
+        batch_length = math.floor(data.shape[1]/batches_per_timeseries)
+        cutoff_samples = math.floor((contrast_size+1)/batches_per_timeseries)
+        self.data = data[:cutoff_samples, :(batch_length*batches_per_timeseries)]\
+                        .reshape(contrast_size+1,
+                                 batch_length,
+                                 *data.shape[2:])
+        self.contrast_size = contrast_size
+        self.prediction_range = prediction_range
+        self.random_state = np.random.RandomState(seed=seed)
+
+    def __len__(self):
+        return self.data.shape[1]-self.prediction_range
+
+    def __getitem__(self, idx):
+        return torch.from_numpy(self.data[:, idx:(idx+self.prediction_range+1)].astype(np.float32))
