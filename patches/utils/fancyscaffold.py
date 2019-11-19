@@ -22,8 +22,8 @@ def import_fancyscaffold():
                           'on "https://github.com/sflippl/fancyscaffold".')\
             from e
     except NameError as e:
-    raise ImportError('Rpy2 is required for this functionality, but has '
-                      'not been installed. Install it using conda, pip, '
-                      'or any other preferred package manager.')\
-        from e
+        raise ImportError('Rpy2 is required for this functionality, but has '
+                          'not been installed. Install it using conda, pip, '
+                          'or any other preferred package manager.')\
+            from e
     return fancyscaffold
