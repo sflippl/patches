@@ -29,6 +29,7 @@ class Atom:
             self.message_stack(layer)
             layer.sample(random_state=random_state,
                          message_stack=self.message_stack)
+        self.message_stack.restart()
         self.n_samples += 1
 
     def to_array(self):
@@ -47,8 +48,7 @@ class Atom:
 
     def latent_array(self):
         arr = np.concatenate([
-            np.expand_dims(layer.latent_array(), -1)\
-            for layer in self.layers
+            layer.latent_array() for layer in self.layers
         ], axis=-1)
         return arr
 
@@ -85,7 +85,7 @@ class Pilgrimm:
         for atom in self.atoms:
             for __ in range(samples):
                 atom.sample(random_state=self.random_state)
-        self.n_samples += 1
+        self.n_samples += samples
 
     def to_array(self):
         """This function returns the resulting array in a two-dimensional

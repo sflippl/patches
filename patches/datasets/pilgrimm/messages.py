@@ -48,7 +48,6 @@ class MessageStack(dict):
                              format(type(msg),))
         id = self.get_id()
         self[id] = msg
-        return id
 
     def get_id(self):
         old_id = self.new_id
@@ -58,3 +57,11 @@ class MessageStack(dict):
     def __call__(self, layer):
         for msg in self.values():
             msg(layer)
+
+    def restart(self):
+        pop_keys = []
+        for key, msg in self.items():
+            if isinstance(msg, ForgetMessage):
+                pop_keys.append(key)
+        for key in pop_keys:
+            self.pop(key)

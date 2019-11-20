@@ -19,7 +19,6 @@ class Layer(abc.ABC):
     def __init__(self, width, magic=False):
         self.width = width
         self.magic = magic
-        self.last_id = None
 
     @abc.abstractmethod
     def sample(self, random_state):
@@ -46,11 +45,9 @@ class Layer(abc.ABC):
         """Checks if the last value is inside a certain array."""
 
     def magical(self, array, message_stack):
-        if self.last_id is not None:
-            message_stack.pop(self.last_id)
         def cond(layer):
             return layer.is_in(array)
-        self.last_id = message_stack.add_message(ForgetMessage(cond=cond))
+        message_stack.add_message(ForgetMessage(cond=cond))
 
 class ShapeLayer(Layer):
     """A layer of a pilgrimm atom.
@@ -140,9 +137,8 @@ class ShapeLayer(Layer):
             'y': self.width-shape.shape[0]+1
         }
 
-    def forget(self, cond=None):
-        if (cond is None) or (cond(self)):
-            self.last_value = None
+    def forget(self):
+        self.last_shape = None
 
     def to_array(self):
         lst_arrs = [np.expand_dims(self.get_array(location, shape[0]), axis=0)
@@ -154,6 +150,8 @@ class ShapeLayer(Layer):
         return self.shape
 
     def is_in(self, array):
+        if self.shape.shape[0] == 0:
+            return False
         last_array = self.get_array(self.location[-1], self.shape[-1,0])
         return np.all(np.logical_or(np.isnan(last_array), np.logical_not(np.isnan(array))))
 
@@ -183,7 +181,7 @@ class OccludingLayer(Layer):
     def sample(self, random_state, message_stack):
         new_array = self.occlusion_fun(random_state, self.width)
         self.array = np.append(
-            self.array,
+            self.array, np.expand_dims(new_array, axis=0), axis=0
         )
         if self.magic:
             self.magical(new_array, message_stack)
@@ -191,5 +189,16 @@ class OccludingLayer(Layer):
     def is_in(self, array):
         return False
 
-    def latent_array(self, array):
+    def latent_array(self):
         return np.empty(shape=(self.array.shape[0], 0), dtype=np.float32)
+
+    def to_array(self):
+        return self.array
+
+def uniform_occlusion(width=10, occlusion_range=0, occlusion_prob=0.05, magic=False):
+    def occlusion_fun(random_state, width=10):
+        if random_state.random() >= occlusion_prob:
+            return np.full(shape=(width, width), fill_value=np.nan)
+        return random_state.uniform(-occlusion_range, occlusion_range,
+                                    size=(width, width))
+    return OccludingLayer(width, occlusion_fun, magic=magic)
