@@ -7,8 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.colors as mcolors
+import plotnine as gg
 
 from .messages import MessageStack
+import patches.utils as utils
 
 class Atom:
     """An atom of the pilgrim model.
@@ -121,7 +123,7 @@ class Pilgrimm:
         arr = np.concatenate([atom.latent_array() for atom in self.atoms], axis=1)
         return arr
 
-    def animate(self, n=None, file=None, format=None):
+    def animate(self, n=None, file=None, format=None, html=False):
         format = format or (1, len(self.atoms))
         tmpdir = tempfile.gettempdir()
         _file = file or '{}/ipython_animation.gif'.format(tmpdir)
@@ -135,6 +137,16 @@ class Pilgrimm:
             return im, 
         ani = animation.FuncAnimation(fig, updatefig, frames=range(n), blit=True,
                                       repeat=True)
+        if html:
+            try:
+                from IPython.display import HTML
+                vid = HTML(ani.to_html5_video())
+                plt.close()
+                return vid
+            except NameError as e:
+                raise NotImplementedError('You can only call this function without a filepath from '
+                                          'an IPython environment.')\
+                    from e
         ani.save(_file, writer='pillow')
         plt.close()
         if file is None:
@@ -145,3 +157,14 @@ class Pilgrimm:
                 raise NotImplementedError('You can only call this function without a filepath from '
                                           'an IPython environment.')\
                     from e
+
+    def latent_evolution(self, **kwargs):
+        df = utils.array_to_dataframe(self.latent_array())\
+                  .rename(columns = {'dim0': 'time',
+                                     'dim1': 'latent_dimension',
+                                     'array': 'value'})
+        img = (gg.ggplot(df, gg.aes(x='time', y='value')) +
+                  gg.geom_line() +
+                  gg.facet_wrap('latent_dimension', dir='v', **kwargs) +
+                  gg.labs(x='Time', y='', title='Latent values'))
+        return img

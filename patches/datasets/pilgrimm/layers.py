@@ -68,6 +68,7 @@ class ShapeLayer(Layer):
         self.width = width
         self.shape = np.empty(shape=(0, 1), dtype=int)
         self.location = np.empty(shape=(0, 2), dtype=int)
+        self.occluded = np.empty(shape=(0, 1), dtype=bool)
         self.last_shape = None
 
     def _validate_init(self, shapes, transition_probabilities,
@@ -174,7 +175,6 @@ class OccludingLayer(Layer):
         super().__init__(width, magic)
         self.width = width
         self.occlusion_fun = occlusion_fun
-        self.magic = magic
         self.array = np.empty(shape=(0, width, width), dtype=np.float32)
         self.last_id = None
 

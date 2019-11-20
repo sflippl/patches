@@ -27,4 +27,5 @@ tutorial pages.
    :caption: Contents:
    :hidden:
    
+   usage/pilgrimm
    module
