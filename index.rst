@@ -5,11 +5,13 @@
 
 patches: Contrastive coding in Pytorch
 ================================================================================
-.. image:: https://travis-ci.com/sflippl/patches.svg?token=29zpy5Q2m7UyeivkA9x5&branch=master
-    :target: https://travis-ci.com/sflippl/patches
+.. image:: https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.7--dev-blue
 .. image:: https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000
     :target: https://github.com/sflippl/predicode/blob/master/LICENSE)
-.. image:: https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.7--dev-blue
+.. image:: https://travis-ci.com/sflippl/patches.svg?token=29zpy5Q2m7UyeivkA9x5&branch=master
+    :target: https://travis-ci.com/sflippl/patches
+.. image:: https://coveralls.io/repos/github/sflippl/patches/badge.svg?branch=master
+    :target: https://coveralls.io/github/sflippl/patches?branch=master
 
 'patches' implements contrastive coding using torch, allows an easy comparison
 with alternative supervised and unsupervised learning algorithms, and provides
