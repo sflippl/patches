@@ -7,8 +7,11 @@ import numpy as np
 import pandas as pd
 
 def array_to_dataframe(array):
-    dims = array.shape
-    flat_array = array.flatten()
+    try:
+        dims = array.shape
+        flat_array = array.flatten()
+    except AttributeError as e:
+        raise TypeError('array must be a numpy array or a similar object.') from e
     dct_flat = {
         "dim%d"%i: np.array(
             np.repeat(
