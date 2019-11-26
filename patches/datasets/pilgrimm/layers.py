@@ -38,7 +38,8 @@ class Layer(abc.ABC):
         """
 
     def forget(self):
-        pass
+        """Forget the layer's history.
+        """
 
     @abc.abstractmethod
     def is_in(self, array):
@@ -154,6 +155,8 @@ class ShapeLayer(Layer):
         if self.shape.shape[0] == 0:
             return False
         last_array = self.get_array(self.location[-1], self.shape[-1,0])
+        if np.all(np.isnan(last_array)):
+            return False
         return np.all(np.logical_or(np.isnan(last_array), np.logical_not(np.isnan(array))))
 
 class OccludingLayer(Layer):
