@@ -182,7 +182,8 @@ class OccludingLayer(Layer):
         self.last_id = None
 
     def sample(self, random_state, message_stack):
-        new_array = self.occlusion_fun(random_state, self.width)
+        new_array = self.occlusion_fun(random_state=random_state,
+                                       width=self.width)
         self.array = np.append(
             self.array, np.expand_dims(new_array, axis=0), axis=0
         )
@@ -200,7 +201,7 @@ class OccludingLayer(Layer):
 
 def uniform_occlusion(width=10, occlusion_range=0, occlusion_prob=0.05, magic=False):
     def occlusion_fun(random_state, width=10):
-        if random_state.random() >= occlusion_prob:
+        if random_state.rand() >= occlusion_prob:
             return np.full(shape=(width, width), fill_value=np.nan)
         return random_state.uniform(-occlusion_range, occlusion_range,
                                     size=(width, width))
