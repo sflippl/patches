@@ -6,6 +6,22 @@ import patches
 import lettertask as lt
 from tqdm import tqdm
 import os
+import argparse
+
+# PREPARE GPU/CPU DEVICE ==========================================
+
+parser = argparse.ArgumentParser(
+    description='Experiments on Contrastive Coding'
+)
+parser.add_argument('--disable-cuda', action='store_true',
+                    help='Disable CUDA')
+parser.add_argument
+args = parser.parse_args()
+args.device = None
+if not args.disable_cuda and torch.cuda.is_available():
+    args.device = torch.device('cuda')
+else:
+    args.device = torch.device('cpu')
 
 # MODEL ===========================================================
 
@@ -71,10 +87,10 @@ def model_generator(input_features, latent_features, timesteps, **kwargs):
         'predictor': predictor,
         'decoder': decoder
     }
-patchclamp = patches.patchclamp.PatchClamp(model_generator)
+patchclamp = patches.patchclamp.PatchClamp(model_generator).to(device=args.device)
 
 with tqdm(
-    total = len(model_combinations)*len(samples)*len(learning_rates)*len(methods)*len(latent_features)*iterations*epochs
+    total=len(model_combinations)*len(samples)*len(learning_rates)*len(methods)*len(latent_features)*iterations*epochs
 ) as pbar:
     for i_model, model in enumerate(model_combinations):
         _latent_features = [lf for lf in latent_features if lf<=len(model[0])]

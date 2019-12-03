@@ -31,7 +31,7 @@ class ContrastiveDataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, data, contrast_size=9, stride=1, contrast_type='samples',
-                 prediction_range='all', seed=None,
+                 prediction_range='all', seed=None, device=None,
                  **kwargs):
         super().__init__()
         self.prediction_range = prediction_range
@@ -40,6 +40,7 @@ class ContrastiveDataset(torch.utils.data.Dataset):
         self.stride = stride
         self.random_state = np.random.RandomState(seed=seed)
         self.data = data
+        self.device = device
         if prediction_range!='all':
             if prediction_range <= 0:
                 raise ValueError('Prediction range must be positive.')
@@ -49,6 +50,9 @@ class ContrastiveDataset(torch.utils.data.Dataset):
         if (prediction_range == 'all') and (contrast_type != 'samples'):
             raise ValueError('Within-sample contrasts are not accepted for unlimited prediction '
                              'range.')
+
+    def to(self, device=None):
+        self.device = device
 
     def __getitem__(self, idx):
         idx_0 = int(np.floor(idx/self.items_per_sample))
@@ -77,7 +81,8 @@ class ContrastiveDataset(torch.utils.data.Dataset):
                                            size=self.contrast_size)
         for i, j in zip(idxs_0, idxs_1):
             data.append(self.data[i:(i+1), j:(j+self.prediction_range+1)])
-        return torch.from_numpy(np.concatenate(data, axis=0).astype(np.float32))
+        return torch.from_numpy(np.concatenate(data, axis=0).astype(np.float32))\
+                    .to(device=self.device)
 
     def __len__(self):
         return int(self.data.shape[0]*self.items_per_sample)
@@ -88,7 +93,7 @@ class ContrastiveTimeseries(torch.utils.data.Dataset):
     consistent.
     """
 
-    def __init__(self, data, contrast_size=9, prediction_range=5, seed=None, drop_last=True):
+    def __init__(self, data, contrast_size=9, prediction_range=5, seed=None, drop_last=True, device=None):
         if not drop_last:
             raise NotImplementedError()
         batches_per_timeseries = math.ceil((contrast_size+1)/data.shape[0])
@@ -101,9 +106,15 @@ class ContrastiveTimeseries(torch.utils.data.Dataset):
         self.contrast_size = contrast_size
         self.prediction_range = prediction_range
         self.random_state = np.random.RandomState(seed=seed)
+        self.device = device
+
+    def to(self, device=None):
+        self.device = device
 
     def __len__(self):
         return self.data.shape[1]-self.prediction_range
 
     def __getitem__(self, idx):
-        return torch.from_numpy(self.data[:, idx:(idx+self.prediction_range+1)].astype(np.float32))
+        return torch.from_numpy(self.data[:, idx:(idx+self.prediction_range+1)]\
+                    .astype(np.float32))\
+                    .to(device=self.device)

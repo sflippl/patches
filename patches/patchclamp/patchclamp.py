@@ -27,7 +27,7 @@ class ClampedModel(nn.Module):
 
     def __init__(self, module, model_type=None, input_data=None, latent_data=None,
                  forward_pass=None, loss_pass=None,
-                 loss_to_criterion=None, timesteps=[0], **kwargs):
+                 loss_to_criterion=None, timesteps=[0], device=None, **kwargs):
         super().__init__()
         self._module = module
         self.model_type = model_type
@@ -35,6 +35,10 @@ class ClampedModel(nn.Module):
         self.loss_pass = loss_pass or ClampedModel._get_loss_pass(model_type)
         self.loss_to_criterion = loss_to_criterion or \
                                  ClampedModel._get_loss_to_criterion(model_type)
+        self.device = device
+
+    def to(self, device=None):
+        self.device = device
 
     def forward(self, x):
         data = self.forward_pass(x)
@@ -79,30 +83,32 @@ class ClampedModel(nn.Module):
         raise ValueError('Unknown model type {}.'.format(model_type))
 
     def _get_loss_to_criterion(model_type):
-        if (model_type is None) or (model_type in ['ura', 'upa']):
+        if (model_type is None) or (model_type in ['ura', 'upa', 'scr', 'spcr']):
             return lambda loss, input_loss, latent_loss: input_loss
-        if model_type in ['scr', 'spcr']:
-            return lambda loss, input_loss, latent_loss: latent_loss
         if model_type in ['cc']:
             return lambda loss, input_loss, latent_loss: losses.ContrastiveLoss(latent_loss)       
         raise ValueError('Unknown model type {}.'.format(model_type))
 
     def dataset(self, input_data, latent_data, timesteps, batch_size=8, **kwargs):
         if self.model_type in ['ura']:
-            dataset = data.Timeseries(input_data, timesteps=[0])
+            dataset = data.Timeseries(input_data, timesteps=[0])\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['upa']:
-            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))
+            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['scr']:
             dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=[0])
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['spcr']:
-            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))
+            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['cc']:
             return data.ContrastiveDataset(input_data, contrast_size=9, prediction_range=timesteps,
-                                           contrast_type='both')       
+                                           contrast_type='both')\
+                       .to(device=self.device)
         raise ValueError('Unknown model type {}.'.format(self.model_type))
 
 class Transpose(nn.Module):
@@ -134,9 +140,13 @@ class PatchClamp:
             x = x.reshape(*x.shape[:-2], self.timesteps, self.latent_features)
             return x
 
-    def __init__(self, model_generator=None, model_hyperparameters=None):
+    def __init__(self, model_generator=None, model_hyperparameters=None, device=None):
         self.model_generator = model_generator
         self.model_hyperparameters = model_hyperparameters
+        self.device = device
+
+    def to(self, device=None):
+        self.device = device
 
     def get_scr(self, input_features, latent_features, **kwargs):
         """Get the supervised classification or regression. 
@@ -144,7 +154,7 @@ class PatchClamp:
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
                                       **kwargs)
-        scr = ClampedModel(models['encoder'], 'scr')
+        scr = ClampedModel(models['encoder'], 'scr', device=self.device)
         return scr
 
     def get_spcr(self, input_features, latent_features, timesteps=1, **kwargs):
@@ -157,7 +167,7 @@ class PatchClamp:
                                                  models['predictor'],
                                                  timesteps=timesteps,
                                                  latent_features=latent_features),
-                            'spcr')
+                            'spcr', device=self.device)
         return spcr
 
     def get_cc(self, input_features, latent_features, **kwargs):
@@ -167,7 +177,7 @@ class PatchClamp:
                                       latent_features=latent_features,
                                       **kwargs)
         cc = ClampedModel(networks.ContrastiveCoder(models['encoder'], models['predictor']),
-                          'cc')
+                          'cc', device=self.device)
         return cc
 
     def get_ura(self, input_features, latent_features, **kwargs):
@@ -176,7 +186,8 @@ class PatchClamp:
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
                                       **kwargs)
-        ura = ClampedModel(nn.Sequential(models['encoder'], models['decoder']), 'ura')
+        ura = ClampedModel(nn.Sequential(models['encoder'], models['decoder']), 'ura',
+                           device=self.device)
         return ura
 
     def get_upa(self, input_features, latent_features, timesteps=1, **kwargs):
@@ -188,7 +199,7 @@ class PatchClamp:
         upa = ClampedModel(nn.Sequential(models['encoder'],
                                          models['predictor'],
                                          models['decoder']),
-                           'upa')
+                           'upa', device=self.device)
         return upa
 
     def get(self, algorithm, **kwargs):

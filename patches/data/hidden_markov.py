@@ -27,12 +27,17 @@ class HiddenMarkovModel(data.Dataset):
     def __len__(self):
         return self.input_data.shape[0]*self.items_per_sample
 
+    def to(self, device=None):
+        self.device = device
+
     def __getitem__(self, idx):
         idx_0 = int(np.floor(idx/self.items_per_sample))
         idx_1 = int(idx % self.items_per_sample)
         input = self.input_data[idx_0, [idx_1-self.min_time]]
         target_range = [idx_1+t-self.min_time for t in self.timesteps]
         target = self.latent_data[idx_0, target_range]
-        input = torch.from_numpy(input.astype(np.float32))
-        target = torch.from_numpy(target.astype(np.float32))
+        input = torch.from_numpy(input.astype(np.float32))\
+                     .to(device=self.device)
+        target = torch.from_numpy(target.astype(np.float32))\
+                      .to(device=self.device)
         return {'input': input, 'target': target}
