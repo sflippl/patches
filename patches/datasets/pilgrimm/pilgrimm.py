@@ -36,7 +36,7 @@ class Atom:
 
     def to_array(self):
         arr = np.concatenate([
-            layer.to_array().expand_dims(-1)\
+            np.expand_dims(layer.to_array(), -1)\
             for layer in self.layers
         ], axis=-1)
         return arr
@@ -94,7 +94,7 @@ class Pilgrimm:
         format mapping (samples)x(width)x(width)x(height)x(atoms).
         """
         arr = np.concatenate([
-            atom.to_array().expand_dims(-1) for atom in self.atoms
+            np.expand_dims(atom.to_array(), -1) for atom in self.atoms
         ], axis=-1)
         return arr
 

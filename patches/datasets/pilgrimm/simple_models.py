@@ -11,20 +11,22 @@ def _change_matrix(change_prob):
     return np.array([[1-change_prob, change_prob],
                      [change_prob, 1-change_prob]])
 
-def compositional_binary_model(width=None, change_probs=None, samples=0,
+def compositional_binary_model(widths=None, change_probs=None, samples=0,
                                seed=None, random_state=None):
     shapes = [np.array([[1.]]), np.array([[-1.]])]
-    cbm = compositional_geometric_model(width=width, change_probs=change_probs,
+    cbm = compositional_geometric_model(widths=widths, change_probs=change_probs,
                                         shapes=shapes, samples=samples, seed=seed,
                                         random_state=random_state)
     return cbm
 
-def compositional_geometric_model(width=10, change_probs=None, shapes=None,
+def compositional_geometric_model(widths=10, change_probs=None, shapes=None,
                                   samples=0, seed=None, random_state=None):
     shapes = shapes or [np.array([[1., 1.]]), np.array([[1.], [1.]])]
     change_probs = change_probs or [0.05]
     if not isinstance(shapes[0], list):
         shapes = [shapes]*len(change_probs)
+    if not isinstance(widths, list):
+        widths = [widths]*len(change_probs)
     atoms = [
         pilgrimm.Atom([
             layers.ShapeLayer(
@@ -32,7 +34,7 @@ def compositional_geometric_model(width=10, change_probs=None, shapes=None,
                 shapes=_shapes,
                 transition_probabilities=_change_matrix(change_prob)
             )
-        ]) for _shapes, change_prob in zip(shapes, change_probs)
+        ]) for _shapes, change_prob, width in zip(shapes, change_probs, widths)
     ]
     cgm = pilgrimm.Pilgrimm(atoms, samples=samples, random_state=random_state,
                             seed=seed)

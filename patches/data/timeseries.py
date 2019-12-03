@@ -22,6 +22,7 @@ class Timeseries(data.Dataset):
 
     def to(self, device=None):
         self.device = device
+        return self
 
     def __getitem__(self, idx):
         idx_0 = int(np.floor(idx/self.items_per_sample))

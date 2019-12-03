@@ -30,6 +30,7 @@ class ClampedModel(nn.Module):
                  loss_to_criterion=None, timesteps=[0], device=None, **kwargs):
         super().__init__()
         self._module = module
+        self._module.to(device=device)
         self.model_type = model_type
         self.forward_pass = forward_pass or ClampedModel._get_forward_pass(model_type)
         self.loss_pass = loss_pass or ClampedModel._get_loss_pass(model_type)
@@ -39,6 +40,8 @@ class ClampedModel(nn.Module):
 
     def to(self, device=None):
         self.device = device
+        self._module.to(device=device)
+        return self
 
     def forward(self, x):
         data = self.forward_pass(x)
@@ -91,24 +94,20 @@ class ClampedModel(nn.Module):
 
     def dataset(self, input_data, latent_data, timesteps, batch_size=8, **kwargs):
         if self.model_type in ['ura']:
-            dataset = data.Timeseries(input_data, timesteps=[0])\
-                          .to(device=self.device)
+            dataset = data.Timeseries(input_data, timesteps=[0])
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['upa']:
-            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))\
-                          .to(device=self.device)
+            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['scr']:
             dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=[0])
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['spcr']:
-            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))\
-                          .to(device=self.device)
+            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['cc']:
             return data.ContrastiveDataset(input_data, contrast_size=9, prediction_range=timesteps,
-                                           contrast_type='both')\
-                       .to(device=self.device)
+                                           contrast_type='both')
         raise ValueError('Unknown model type {}.'.format(self.model_type))
 
 class Transpose(nn.Module):
@@ -147,6 +146,7 @@ class PatchClamp:
 
     def to(self, device=None):
         self.device = device
+        return self
 
     def get_scr(self, input_features, latent_features, **kwargs):
         """Get the supervised classification or regression. 
@@ -162,6 +162,7 @@ class PatchClamp:
         """
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
+                                      timesteps=timesteps,
                                       **kwargs)
         spcr = ClampedModel(PatchClamp.Predictor(models['encoder'],
                                                  models['predictor'],
@@ -195,6 +196,7 @@ class PatchClamp:
         """
         models = self.model_generator(input_features=input_features,
                                       latent_features=latent_features,
+                                      timesteps=timesteps,
                                       **kwargs)
         upa = ClampedModel(nn.Sequential(models['encoder'],
                                          models['predictor'],

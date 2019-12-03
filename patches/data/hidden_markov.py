@@ -16,19 +16,21 @@ class HiddenMarkovModel(data.Dataset):
             timeseries? Default is 0.
     """
 
-    def __init__(self, input_data, latent_data, timesteps=[0]):
+    def __init__(self, input_data, latent_data, timesteps=[0], device=None):
         self.input_data = input_data
         self.latent_data = latent_data
         self.timesteps = timesteps
         time_range = max(max(timesteps), 0) - min(min(timesteps), 0)
         self.min_time = min(min(timesteps), 0)
         self.items_per_sample = self.input_data.shape[1]-(time_range+1)
+        self.device = device
 
     def __len__(self):
         return self.input_data.shape[0]*self.items_per_sample
 
     def to(self, device=None):
         self.device = device
+        return self
 
     def __getitem__(self, idx):
         idx_0 = int(np.floor(idx/self.items_per_sample))

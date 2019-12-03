@@ -53,6 +53,7 @@ class ContrastiveDataset(torch.utils.data.Dataset):
 
     def to(self, device=None):
         self.device = device
+        return self
 
     def __getitem__(self, idx):
         idx_0 = int(np.floor(idx/self.items_per_sample))
@@ -110,6 +111,7 @@ class ContrastiveTimeseries(torch.utils.data.Dataset):
 
     def to(self, device=None):
         self.device = device
+        return self
 
     def __len__(self):
         return self.data.shape[1]-self.prediction_range
