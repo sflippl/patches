@@ -197,7 +197,7 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
                     optimizer.step()
                 pbar.update(1)
                 loss_traj.append(running_loss/len(dataset))
-                params = list(clamp.parameters())[0].detach().numpy()
+                params = list(clamp.parameters())[0].detach().cpu().numpy()
                 params = params/np.sqrt((params**2).sum(axis=1))\
                                   .reshape(params.shape[0], 1)
                 _angle = np.matmul(ideals, params.T)
