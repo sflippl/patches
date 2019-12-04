@@ -20,6 +20,13 @@ parser.add_argument('--iterations',
                     help='Number of runs',
                     type=int,
                     default=100)
+parser.add_argument('--path',
+                    help='Path to save data',
+                    default='20-data')
+parser.add_argument('--timesteps',
+                    help='Number of predicted timesteps',
+                    type=int,
+                    default=1)
 args = parser.parse_args()
 args.device = None
 if not args.disable_cuda and torch.cuda.is_available():
@@ -138,7 +145,7 @@ grid['loss_path'] = np.array([
     'loss_{}.npy'.format(suffix) for suffix in grid['suffix']
 ])
 
-existing_data = os.listdir('20-data')
+existing_data = os.listdir(args.path)
 
 grid['resolved'] = np.array([
     (row.angle_path in existing_data) and (row.loss_path in existing_data) for i, row in grid.iterrows()
@@ -162,12 +169,12 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
             clamp = patchclamp.get(row.algorithm,
                                    input_features = sum([_width**2 for _width in row.widths]),
                                    latent_features = row.latent_features,
-                                   timesteps=5)
+                                   timesteps=args.timesteps)
             latent_array = data.latent_array()[:, range(row.latent_features)]
             latent_array = latent_array.reshape(1, *latent_array.shape)
             dataset = clamp.dataset(data.flat_array().reshape(1, row.samples, -1),
                                     latent_array,
-                                    timesteps=5)
+                                    timesteps=args.timesteps)
             loss_traj = []
             angle = []
             optimizer = row.method(clamp.parameters(), lr=row.learning_rates)
@@ -180,7 +187,7 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
                         sample = dataset[i]
                     else:
                         sample = next(dataset_it)
-                    sample.to(device=args.device)
+                    #sample.to(device=args.device)
                     optimizer.zero_grad()
                     model_output = clamp(sample)
                     loss = clamp.loss(model_output, sample,
@@ -201,8 +208,8 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
             loss_trajs.append(loss_traj)
         angles = np.array(angles)
         loss_trajs = np.array(loss_trajs)
-        np.save('20-data/{}'.format(row.angle_path,), angles)
-        np.save('20-data/{}'.format(row.loss_path,), loss_trajs)
+        np.save('{}/{}'.format(args.path, row.angle_path), angles)
+        np.save('{}/{}'.format(args.path, row.loss_path), loss_trajs)
 
 grid['resolved'] = np.array([
     (row.angle_path in existing_data) and (row.loss_path in existing_data) for i, row in grid.iterrows()
@@ -210,4 +217,4 @@ grid['resolved'] = np.array([
 saved_grid = grid.drop(['_models', '_methods', 'method'], axis='columns')
 saved_grid['widths'] = [str(widths) for widths in saved_grid['widths']]
 saved_grid['change_probs'] = [str(change_probs) for change_probs in saved_grid['change_probs']]
-saved_grid.reset_index(drop=True).to_feather('20-data/grid.feather')
+saved_grid.reset_index(drop=True).to_feather('{}/grid.feather'.format(args.path,))
