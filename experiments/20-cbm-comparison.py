@@ -180,6 +180,7 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
                         sample = dataset[i]
                     else:
                         sample = next(dataset_it)
+                    #sample.to(device=args.device)
                     optimizer.zero_grad()
                     model_output = clamp(sample)
                     loss = clamp.loss(model_output, sample,

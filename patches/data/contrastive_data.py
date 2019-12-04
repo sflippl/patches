@@ -66,7 +66,8 @@ class ContrastiveDataset(torch.utils.data.Dataset):
             ]
             idxs_0 = [idx_0] + list(idxs_0)
             if self.prediction_range == 'all':
-                return torch.from_numpy(self.data[idxs_0].astype(np.float32))
+                return torch.from_numpy(self.data[idxs_0].astype(np.float32))\
+                            .to(device=self.device)
             return torch.from_numpy(
                 self.data[np.array(idxs_0), idx_1:(idx_1+self.prediction_range+1)].astype(np.float32)
             )
@@ -76,7 +77,8 @@ class ContrastiveDataset(torch.utils.data.Dataset):
                                                size=self.contrast_size)
             for i in idxs_1:
                 data.append(self.data[[idx_0], i:(i+self.prediction_range+1)])
-            return torch.from_numpy(np.concatenate(data, axis=0).astype(np.float32))
+            return torch.from_numpy(np.concatenate(data, axis=0).astype(np.float32))\
+                        .to(device=self.evice)
         idxs_0 = self.random_state.randint(0, self.data.shape[0], size=int(self.contrast_size))
         idxs_1 = self.random_state.randint(0, self.data.shape[1]-self.prediction_range,
                                            size=self.contrast_size)

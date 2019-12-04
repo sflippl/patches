@@ -94,20 +94,25 @@ class ClampedModel(nn.Module):
 
     def dataset(self, input_data, latent_data, timesteps, batch_size=8, **kwargs):
         if self.model_type in ['ura']:
-            dataset = data.Timeseries(input_data, timesteps=[0])
+            dataset = data.Timeseries(input_data, timesteps=[0])\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['upa']:
-            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))
+            dataset = data.Timeseries(input_data, timesteps=range(1, timesteps+1))\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['scr']:
-            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=[0])
+            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=[0])\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['spcr']:
-            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))
+            dataset = data.HiddenMarkovModel(input_data, latent_data, timesteps=range(1, timesteps+1))\
+                          .to(device=self.device)
             return DataLoader(dataset, batch_size=batch_size, drop_last=True)
         if self.model_type in ['cc']:
             return data.ContrastiveDataset(input_data, contrast_size=9, prediction_range=timesteps,
-                                           contrast_type='both')
+                                           contrast_type='both')\
+                       .to(device=self.device)
         raise ValueError('Unknown model type {}.'.format(self.model_type))
 
 class Transpose(nn.Module):
