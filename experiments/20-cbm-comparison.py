@@ -188,14 +188,13 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
                                       latent_loss = patches.losses.BilinearLoss())
                     loss.backward()
                     optimizer.step()
-                    if i % 100 == 99:
-                        loss_traj.append(running_loss/100)
-                        params = list(clamp.parameters())[0].detach().numpy()
-                        params = params/np.sqrt((params**2).sum(axis=1))\
-                                          .reshape(params.shape[0], 1)
-                        _angle = np.matmul(ideals, params.T)
-                        angle.append(_angle)
                 pbar.update(1)
+                loss_traj.append(running_loss/len(dataset))
+                params = list(clamp.parameters())[0].detach().numpy()
+                params = params/np.sqrt((params**2).sum(axis=1))\
+                                  .reshape(params.shape[0], 1)
+                _angle = np.matmul(ideals, params.T)
+                angle.append(_angle)
             angle = np.array(angle)
             loss_traj = np.array(loss_traj)
             angles.append(angle)
