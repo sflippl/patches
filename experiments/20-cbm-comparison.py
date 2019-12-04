@@ -27,6 +27,10 @@ parser.add_argument('--timesteps',
                     help='Number of predicted timesteps',
                     type=int,
                     default=1)
+parser.add_argument('--start-at',
+                    help='Which index should we start at?',
+                    type=int,
+                    default=0)
 args = parser.parse_args()
 args.device = None
 if not args.disable_cuda and torch.cuda.is_available():
@@ -156,7 +160,7 @@ print('{}/{} cases resolved. Now resolving another {}.'.format(sum(grid['resolve
                                                                args.iterations))
 
 new_grid = grid[np.logical_not(grid['resolved'])]
-new_grid = new_grid.iloc[range(min(len(new_grid), args.iterations))]
+new_grid = new_grid.iloc[range(args.start_at, min(len(new_grid), args.iterations+args.start_at))]
 
 with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
     for i, row in new_grid.iterrows():
@@ -197,7 +201,7 @@ with tqdm(total=len(new_grid)*iterations*epochs) as pbar:
                     optimizer.step()
                 pbar.update(1)
                 loss_traj.append(running_loss/len(dataset))
-                params = list(clamp.parameters())[0].detach().cpu().numpy()
+                params = list(clamp.parameters())[0].detach().numpy()
                 params = params/np.sqrt((params**2).sum(axis=1))\
                                   .reshape(params.shape[0], 1)
                 _angle = np.matmul(ideals, params.T)
